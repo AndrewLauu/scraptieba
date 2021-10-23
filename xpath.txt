@@ -1,0 +1,16 @@
+thread title <text>://a[@class="j_th_tit "]/@title
+thread href <p/7579007237>://a[@class="j_th_tit "]/@href
+page i : ?pn=2
+
+
+thread:
+post-claster：//div[@id="j_p_postlist"]
+
+  post no：//div[@id="j_p_postlist"]/div[1]/@data-pid
+
+  post content with pic ://div[@id="j_p_postlist"]//cc[2]//div[@class="d_post_content j_d_post_content  clearfix"]
+    content: ./text()
+    pic: ./img/@src
+  #todo multipic post pic: //div[@id="j_p_postlist"]//cc[2]//div[@replace_div]/img/@src
+  post author: //div[@id="j_p_postlist"]/div[1]/@data-field [user_name]|[user_nickname]
+  date://div[@id="j_p_postlist"]/div[1]/@data-field [date]
