@@ -1,5 +1,9 @@
+
+pageNum: //a[@class="last pagination-item "]/@href
+
+
 thread title <text>://a[@class="j_th_tit "]/@title
-thread href <p/7579007237>://a[@class="j_th_tit "]/@href
+thread href </p/7579007237>://a[@class="j_th_tit "]/@href
 page i : ?pn=2
 
 
