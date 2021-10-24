@@ -1,13 +1,23 @@
-{
-  "thread_title": "<title>", //thread title://a[@class="j_th_tit "]/@title
-  "thread_href": "p/7579007237", //thread href://a[@class="j_th_tit "]/@href
-  "thread_create_time": "<time>",
-  "thread_author": "<thread author>",
-  "posts": {
+[
+    {
+        "thread_title": "<title>", //thread title://a[@class="j_th_tit "]/@title
+        "thread_href": "p/7579007237", //thread href://a[@class="j_th_tit "]/@href
+        "thread_create_time": "<time>",
+        "thread_author": "<thread author>",
+        "posts": [{
     //post-claster：//div[@id="j_p_postlist"]
-    "post_no": "123", //post no：//div[@id="j_p_postlist"]/div[1]/@data-pid
-    "post_author": "<author>",
-    "post_create_time": "<time>",
-    "post_content": "" //post content: //div[@id="j_p_postlist"]<<post list>>//cc[2]//div[@class="d_post_content j_d_post_content  clearfix"]
-  }
-}
+        "post_no": "123", //post no：//div[@id="j_p_postlist"]/div[1]/@data-pid
+        "post_author": "<author>",
+        "post_create_time": "<time>",
+        "post_content": "12", //post content: //div[@id="j_p_postlist"]<<post list>>//cc[2]//div[@class="d_post_content j_d_post_content  clearfix"]
+        "post_comment":[
+            {
+            "comment_time":"time",
+            "comment_author":"author",
+            "comment_content":"content",
+            "comment_to":"to thread or to user"
+            }
+        ]
+        }]
+    }
+]

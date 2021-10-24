@@ -1,6 +1,7 @@
 import requests
 from lxml import etree
 import re
+import logging
 
 def getPage(formulaUrl:str)->int:
     res=requests.get(formulaUrl)
@@ -21,8 +22,8 @@ def getThreadList(pageUrl:str)->dict:
 def getPosts(postUrl:str)->dict:
     pass
 
-if __name__=='__main__':
-    url=input('url of forum')
+def start(forumUrl):
+    logging.info(f'Start scraping {formulaUrl}')
     threadUrlList={}
     nPage=getPage()
     postDict={}
@@ -33,5 +34,13 @@ if __name__=='__main__':
     for threadUrl in threadUrlList:
         postDict+=getPosts()
 
+if __name__=='__main__':
+    logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(funcName)s : %(message)s',
+            datefmt'%Y/%m/%d %H:%M:%S'
+            )
+    url=input('url of forum')
+    start(url)
 
 
