@@ -67,6 +67,7 @@ def start(forumUrl):
         postDict+=getPosts(threadUrl)
 
 
+
 if __name__=='__main__':
     logging.basicConfig(
             level=logging.DEBUG,

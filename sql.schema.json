@@ -1,4 +1,23 @@
-{threads:
-    {
-        }
-
+{
+    "threads":{
+        "thread_name":"TEXT",
+        "thread_url":"TEXT",
+        "thread_id":"int PK",
+        "thread_author":"TEXT",
+        "thread_other_info":"..."
+        },
+    "post":{
+        "thread_id":"int FK",
+        "post_id":"int PK",
+        "post_content":"TEXT",
+        "post_author":"TEXT",
+        "post_other_info":"..."
+    },
+    "comment":{
+        "thread_id":"int FK",
+        "post_id":"int FK",
+        "comment_id":"int PK",
+        "comment_author":"TEXT",
+        "comment_other_info":"..."
+    }
+}

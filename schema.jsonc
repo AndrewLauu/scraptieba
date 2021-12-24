@@ -11,7 +11,7 @@
         "post_author": "<author>",
         "post_create_time": "<time>",
         "post_content": "12", //post content: //div[@id="j_p_postlist"]<<post list>>//cc[2]//div[@class="d_post_content j_d_post_content  clearfix"]
-    }
+    },
         "post_comment":[
             {
             "comment_time":"time",
