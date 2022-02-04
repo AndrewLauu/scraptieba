@@ -1,12 +1,17 @@
-from sqlalchemy import Table,Column,String,DateTime,ForeignKey,create_engine,select
-from sqlalchemy.orm import relationship,declarative_base,sessionmaker,Query
+import json
+
+from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import relationship, declarative_base, sessionmaker, Query
 import logging
+from resources import *
 
-logger=logging.getLogger("main")
+logger = logging.getLogger(__name__)
 
-engine=create_engine('sqlite://',echo=True,future=True)
+engine = create_engine('sqlite:///database.db', echo=True, future=True)
+logger.info(f'{engine.engine} established at {engine.dialect}')
 
-Base=declarative_base()
+Base = declarative_base()
 
 """
 thread_user=Table(
@@ -25,91 +30,165 @@ comment_user=Table(
     Column('user_id',String,ForeignKey('user.id'),primary_key=True)
         )
 """
+
+
+class Info(Base):
+    __tablename__ = 'info'
+
+    name = Column(String)
+    url = Column(String, primary_key=True)
+    nPage = Column(Integer)
+    nThread = Column(Integer)
+    nPost = Column(Integer)
+    nMember = Column(Integer)
+
+
 class Thread(Base):
-    __tablename__='thread'
+    __tablename__ = 'thread'
 
-    title=Column(String)
-    id=Column(String,primary_key=True)
-    url=Column(String,unique=Ttue)
-    first_post_id=Column(String,ForeignKey('post.id'))
-    create_time=Column(DatetTime)
-    author=Column(String,ForeignKey('user.id'))
+    title = Column(String)
+    id = Column(Integer, primary_key=True)
+    url = Column(String, unique=True)
+    first_post_id = Column(Integer, ForeignKey('post.id'), unique=True)
+    create_time = Column(DateTime)
+    author = Column(String, ForeignKey('user.id'))
 
-    #relationship
-    posts=relationship('Post',backref='thread')
-    comments=relationship('Comment',backref='thread')
-    #authors=relationship('User',backref='threads',secondary=thread_user)
+    # relationship
+    firstPost = relationship('Post', foreign_keys=[first_post_id])
+    posts = relationship('Post', backref='thread', foreign_keys='Post.thread_id')
+    comments = relationship('Comment', backref='thread', foreign_keys='Comment.thread_id')
+    # authors=relationship('User',backref='threads',secondary=thread_user)
+
 
 class Post(Base):
+    __tablename__ = 'post'
 
-    __tablename__='post'
-    
-    thread_id=Column(String,ForeignKey('thread.id'))
-    id=Column(String,primary_key=True)
-    post_no=Column(Integer)
-    author=Column(String,ForeignKey('user.id'))
-    create_time=Column(DatetTime)
-    content=Column(LongText)
+    thread_id = Column(Integer, ForeignKey('thread.id'))
+    id = Column(Integer, primary_key=True)
+    post_no = Column(Integer)
+    author = Column(String, ForeignKey('user.id'))
+    create_time = Column(DateTime)
+    content = Column(Text)
 
-    comments=relationship('Comment',backref='post')
-    #authors=relationship('User',backref='posts',secondary=post_user)
-    
+    comments = relationship('Comment', backref='post', foreign_keys='Comment.post_id')
+
+    # thread = relationship('Thread', backref='posts',foreign_keys=[thread_id])
+    # authors=relationship('User',backref='posts',secondary=post_user)
+
 
 class Comment(Base):
-    __tablename__='comment'
+    __tablename__ = 'comment'
 
-    thread_id=Column(String,ForeignKey('thread.id'))
-    post_id=Column(String,ForeignKey('post.id'))
-    id=Column(String,primary_key=True)
-    author=Column(String,ForeignKey('user.id'))
-    create_time=Column(DatetTime)
-    content=Column(LongText)
+    thread_id = Column(Integer, ForeignKey('thread.id'))
+    post_id = Column(Integer, ForeignKey('post.id'))
+    id = Column(Integer, primary_key=True)
+    author = Column(String, ForeignKey('user.id'))
+    create_time = Column(DateTime)
+    content = Column(Text)
+    comment_to = Column(String, ForeignKey('user.id'))
 
-    #authors=relationship('User',backref='comments',secondary=comment_user)
+    # authors=relationship('User',backref='comments',secondary=comment_user)
+
 
 class User(Base):
-    __tablename__='user'
-    
-    name=Column(String)
-    nickname=Column(String)
-    id=Column(String,primary_key=True)
+    __tablename__ = 'user'
 
-    threads=relationship('Thread')
-    posts=relationship('Post')
-    comments=relationship('Comment')
+    name = Column(String)
+    nickname = Column(String)
+    id = Column(String, primary_key=True)
 
-    #threads=relationship('Thread',secondary=thread_user)
+    threads = relationship('Thread', foreign_keys='Thread.author')
+    posts = relationship('Post', foreign_keys='Post.author')
+    comments = relationship('Comment', foreign_keys='Comment.author')
+
+    # threads=relationship('Thread',secondary=thread_user)
+
 
 Base.metadata.create_all(engine)
 
-session=sessionmaker(bind=engine,autocommit=False,future=True)()
+# global session
+Session = sessionmaker(bind=engine, autocommit=False, future=True)
+session = Session()
+select=select
 
-Query.only_return_tuples=True
+def insertOrUpdate(cls, rows: dict | list[dict], updateStrategy: str = 'null') -> int:
+    """
 
-#test suit
-"""
-user1=User(id=1,name=1)
-user2=User(id=2,name=2)
+    Args:
+        cls:
+        dataList:
+        updateStrategy: strategy on deplicate primary key
+            all: update all columns regardless any situation
+            not_null: update columns not null or empty with new value and leave`
+            null: update empty or null column to new value and leave not null value unchanged
+            never: don't update any column
 
-session.add_all([user1,user2])
+    Returns:
+        influenced row number
+    """
 
-thread1=Thread(id=1,author=1,content='user 1 thread 1')
-thread2=Thread(id=2,author=2,content='user 2 thread 2')
-thread3=Thread(id=3,author=2,content='user 2 thread 3')
+    def all(newRow, oldRow):
+        return newRow
 
-session.add_all([thread1,thread2,thread3])
+    def not_null(newRow, oldRow):
+        mergeDict = {}
+        newDict = newRow.__dict__
+        oldDict = oldRow.__dict__
+        for i in header:
+            mergeDict[i] = newDict[i] if oldDict[i] and oldDict[i] != '' else None
+        merge = cls(**mergeDict)
+        return merge
 
-post1=Post(id=1,thread_id=1,author=1,content='user 1 thread 1 post 1')
-post2=Post(id=2,thread_id=1,author=1,content='user 1 thread 1 post 2')
+    def null(newRow, oldRow):
+        mergeDict = {}
+        newDict = newRow.__dict__
+        oldDict = oldRow.__dict__
+        for i in header:
+            mergeDict[i] = newDict[i] if not oldDict[i] or oldDict[i] == '' else oldDict[i]
+        merge = cls(**mergeDict)
+        return merge
 
-session.add_all([post1,post2])
+    def never(newRow, oldRow):
+        return oldRow
 
-comment1=Comment(id=1,thread_id=1,post_id=1,author=1,content='user 1 thread 1 post 1 comment 1')
-comment2=Comment(id=2,thread_id=1,post_id=1,author=1,content='user 1 thread 1 post 1 comment 2')
-session.add_all([comment1,comment2])
+    _dataList: list[dict] = []
+    if isinstance(rows, dict):
+        _dataList.append(rows)
+    if isinstance(rows, list):
+        _dataList += rows
 
-stmt=select(User).where(User.id==1)
-a=session.execute(stmt)
-print(stmt)
-print(a)
-"""
+    updateStrategy: str = updateStrategy.lower()
+    strategies = {
+        'all': all,
+        'not_null': not_null,
+        'null': null,
+        'never': never
+    }
+    merge = strategies.get(updateStrategy, null)
+
+    schemaName: str = cls.__tablename__
+    header: list = sql_schema[schemaName][0].keys()
+    cnt = 0
+
+    for d in _dataList:
+        newRow = cls(**d)
+        stmt = select(cls).where(cls.id == d['id'])
+        """
+        method          no result               one result      many results
+        one()           NoResultFound error     (obj,)          MultipleResultsFound error
+        one_or_none()   None                    (obj,)          MultipleResultsFound error
+        scalar()        None                    obj             obj
+        first()         None                    (obj,)          (obj,)
+        all()           []                      [(obj,)]        [(obj,)]
+        """
+        existingRow = session.execute(stmt).scalar()
+        if existingRow:
+            # if updateStrategy == ''
+            newRow = merge(newRow, existingRow)
+            session.delete(existingRow)
+            # existing row not counted in
+            cnt -= 1
+        session.add(newRow)
+        session.commit()
+        cnt += 1
+    return cnt

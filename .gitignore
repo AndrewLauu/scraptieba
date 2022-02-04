@@ -120,3 +120,7 @@ dmypy.json
 
 # intellij
 .idea/
+
+# personal data
+/img/
+/database.db
