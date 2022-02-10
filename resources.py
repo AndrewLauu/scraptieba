@@ -1,14 +1,17 @@
 sql_schema = {
-    "info": {
-        "name":"forum name",
-        "url":"forum url",
+    "forum": {
+        "id": "",
+        "name": "forum name",
+        "url": "forum url",
         "nPage": " page number of forum",
         "nThread": " thread number in forum",
         "nPost": " post number in forum",
-        "nMember": " member number of forum"
+        "nMember": " member number of forum",
+        "slogan": "slogan"
     },
     "thread": [
         {
+            "forum_id": "forum id",
             "title": "thread_title",
             "id": "thread_id",
             "url": "thread_url",
@@ -19,16 +22,20 @@ sql_schema = {
     ],
     "post": [
         {
+            "forum_id": "forum name",
             "thread_id": "thread_id",
             "id": "post_id",
-            "post_no": "post_no",
+            "post_no": "post number in thread. Number discontinues when post got deleted",
+            "post_index": "post shown sort in thread. Number discontinues when post got deleted",
             "author": "post_author",
             "create_time": "post_create_time",
-            "content": "post_content"
+            "content": "post_content",
+            "origin": "origin"
         }
     ],
     "comment": [
         {
+            "forum_id": "forum name",
             "thread_id": "thread_id",
             "post_id": "post_id",
             "id": "comment_id",

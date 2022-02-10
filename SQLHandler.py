@@ -1,14 +1,18 @@
-import json
+import logging
 
 from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey
 from sqlalchemy import create_engine, select
-from sqlalchemy.orm import relationship, declarative_base, sessionmaker, Query
-import logging
+from sqlalchemy.orm import relationship, declarative_base, sessionmaker
+from sqlalchemy.pool import NullPool
+
 from resources import *
 
 logger = logging.getLogger(__name__)
 
-engine = create_engine('sqlite:///database.db', echo=True, future=True)
+engine = create_engine('sqlite:///database.db', echo=True, future=True, poolclass=NullPool)
+
+for h in logging.getLogger('sqlalchemy.engine.Engine').handlers:logging.getLogger('sqlalchemy.engine.Engine').removeHandler(h)
+
 logger.info(f'{engine.engine} established at {engine.dialect}')
 
 Base = declarative_base()
@@ -32,20 +36,42 @@ comment_user=Table(
 """
 
 
-class Info(Base):
-    __tablename__ = 'info'
+def _str(obj):
+    __header: list = sql_schema[obj.__tablename__][0].keys()
+    __dict: dict = obj.__dict__
+    __newDict: dict = {h: __dict.get(h, None) for h in __header}
+    __str = ', '.join([f'{k} = {v}' for k, v in __newDict.items()])
+    return __str
 
+
+class Forum(Base):
+    __tablename__ = 'forum'
+
+    id = Column(Integer, primary_key=True)
     name = Column(String)
-    url = Column(String, primary_key=True)
+    url = Column(String)
     nPage = Column(Integer)
     nThread = Column(Integer)
     nPost = Column(Integer)
     nMember = Column(Integer)
+    slogan = Column(String)
+
+    # relationships
+    threads = relationship('Thread', foreign_keys='Thread.forum_id', backref='forum')
+    posts = relationship('Post', foreign_keys='Post.forum_id', backref='forum')
+    comments = relationship('Comment', foreign_keys='Comment.forum_id', backref='forum')
+
+    def __str__(self):
+        return _str(self)
+
+    def __repr__(self):
+        return _str(self)
 
 
 class Thread(Base):
     __tablename__ = 'thread'
 
+    forum_id = Column(String, ForeignKey('forum.id'))
     title = Column(String)
     id = Column(Integer, primary_key=True)
     url = Column(String, unique=True)
@@ -57,28 +83,43 @@ class Thread(Base):
     firstPost = relationship('Post', foreign_keys=[first_post_id])
     posts = relationship('Post', backref='thread', foreign_keys='Post.thread_id')
     comments = relationship('Comment', backref='thread', foreign_keys='Comment.thread_id')
+
     # authors=relationship('User',backref='threads',secondary=thread_user)
+    def __str__(self):
+        return _str(self)
+
+    def __repr__(self):
+        return _str(self)
 
 
 class Post(Base):
     __tablename__ = 'post'
 
+    forum_id = Column(String, ForeignKey('forum.id'))
     thread_id = Column(Integer, ForeignKey('thread.id'))
     id = Column(Integer, primary_key=True)
     post_no = Column(Integer)
+    post_index = Column(Integer)
     author = Column(String, ForeignKey('user.id'))
     create_time = Column(DateTime)
     content = Column(Text)
+    origin = Column(String)
 
     comments = relationship('Comment', backref='post', foreign_keys='Comment.post_id')
 
     # thread = relationship('Thread', backref='posts',foreign_keys=[thread_id])
     # authors=relationship('User',backref='posts',secondary=post_user)
+    def __str__(self):
+        return _str(self)
+
+    def __repr__(self):
+        return _str(self)
 
 
 class Comment(Base):
     __tablename__ = 'comment'
 
+    forum_id = Column(String, ForeignKey('forum.id'))
     thread_id = Column(Integer, ForeignKey('thread.id'))
     post_id = Column(Integer, ForeignKey('post.id'))
     id = Column(Integer, primary_key=True)
@@ -88,6 +129,11 @@ class Comment(Base):
     comment_to = Column(String, ForeignKey('user.id'))
 
     # authors=relationship('User',backref='comments',secondary=comment_user)
+    def __str__(self):
+        return _str(self)
+
+    def __repr__(self):
+        return _str(self)
 
 
 class User(Base):
@@ -102,6 +148,11 @@ class User(Base):
     comments = relationship('Comment', foreign_keys='Comment.author')
 
     # threads=relationship('Thread',secondary=thread_user)
+    def __str__(self):
+        return _str(self)
+
+    def __repr__(self):
+        return _str(self)
 
 
 Base.metadata.create_all(engine)
@@ -109,17 +160,18 @@ Base.metadata.create_all(engine)
 # global session
 Session = sessionmaker(bind=engine, autocommit=False, future=True)
 session = Session()
-select=select
+select = select
+
 
 def insertOrUpdate(cls, rows: dict | list[dict], updateStrategy: str = 'null') -> int:
     """
-
+    ORM wrapped insert method with deplicate update
     Args:
         cls:
         dataList:
         updateStrategy: strategy on deplicate primary key
             all: update all columns regardless any situation
-            not_null: update columns not null or empty with new value and leave`
+            not_null: update columns not null or empty with new value and leave null unchanged
             null: update empty or null column to new value and leave not null value unchanged
             never: don't update any column
 
@@ -131,20 +183,18 @@ def insertOrUpdate(cls, rows: dict | list[dict], updateStrategy: str = 'null') -
         return newRow
 
     def not_null(newRow, oldRow):
-        mergeDict = {}
+        mergeDict: dict = {}
         newDict = newRow.__dict__
         oldDict = oldRow.__dict__
         for i in header:
-            mergeDict[i] = newDict[i] if oldDict[i] and oldDict[i] != '' else None
+            mergeDict[i] = newDict[i] if oldDict[i] else None
         merge = cls(**mergeDict)
         return merge
 
     def null(newRow, oldRow):
-        mergeDict = {}
         newDict = newRow.__dict__
         oldDict = oldRow.__dict__
-        for i in header:
-            mergeDict[i] = newDict[i] if not oldDict[i] or oldDict[i] == '' else oldDict[i]
+        mergeDict: dict = {h: oldDict[h] or newDict[h] for h in header}
         merge = cls(**mergeDict)
         return merge
 
@@ -172,6 +222,7 @@ def insertOrUpdate(cls, rows: dict | list[dict], updateStrategy: str = 'null') -
 
     for d in _dataList:
         newRow = cls(**d)
+        engine.echo = False
         stmt = select(cls).where(cls.id == d['id'])
         """
         method          no result               one result      many results
@@ -181,13 +232,14 @@ def insertOrUpdate(cls, rows: dict | list[dict], updateStrategy: str = 'null') -
         first()         None                    (obj,)          (obj,)
         all()           []                      [(obj,)]        [(obj,)]
         """
-        existingRow = session.execute(stmt).scalar()
+        existingRow: object = session.execute(stmt).scalar()
+        engine.echo = True
         if existingRow:
             # if updateStrategy == ''
-            newRow = merge(newRow, existingRow)
+            newRow = merge(newRow=newRow, oldRow=existingRow)
+            logger.debug(f'({updateStrategy})Found deplicate {existingRow=} -> {newRow}')
             session.delete(existingRow)
-            # existing row not counted in
-            cnt -= 1
+
         session.add(newRow)
         session.commit()
         cnt += 1
