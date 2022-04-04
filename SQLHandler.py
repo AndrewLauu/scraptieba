@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 engine = create_engine('sqlite:///database.db', echo=True, future=True, poolclass=NullPool)
 
+# fix deplicate logging as result of add deplicate handler
 for h in logging.getLogger('sqlalchemy.engine.Engine').handlers:logging.getLogger('sqlalchemy.engine.Engine').removeHandler(h)
 
 logger.info(f'{engine.engine} established at {engine.dialect}')
@@ -36,15 +37,19 @@ comment_user=Table(
 """
 
 
-def _str(obj):
-    __header: list = sql_schema[obj.__tablename__][0].keys()
-    __dict: dict = obj.__dict__
-    __newDict: dict = {h: __dict.get(h, None) for h in __header}
-    __str = ', '.join([f'{k} = {v}' for k, v in __newDict.items()])
-    return __str
+class hint():
+    def __str__(self):
+
+        # __header: list = sql_schema[self.__tablename__][0].keys()
+        # __dict: dict = self.__dict__
+        #__newDict: dict = {h: __dict.get(h, None) for h in __header}
+        # ignore buildin attrs
+        #__newDict: dict = {k:v for k,v in self.__dict__ if not k.startswith('_')}
+        __hint = ', '.join([f'{k} = {v}' for k, v in self.__dict__.items() if not k.startswith('_')])
+        return __hint
 
 
-class Forum(Base):
+class Forum(Base,hint):
     __tablename__ = 'forum'
 
     id = Column(Integer, primary_key=True)
@@ -61,14 +66,14 @@ class Forum(Base):
     posts = relationship('Post', foreign_keys='Post.forum_id', backref='forum')
     comments = relationship('Comment', foreign_keys='Comment.forum_id', backref='forum')
 
-    def __str__(self):
-        return _str(self)
+    #def __str__(self):
+    #    return _str(self)
 
-    def __repr__(self):
-        return _str(self)
+    #def __repr__(self):
+    #    return _str(self)
 
 
-class Thread(Base):
+class Thread(Base,hint):
     __tablename__ = 'thread'
 
     forum_id = Column(String, ForeignKey('forum.id'))
@@ -85,14 +90,14 @@ class Thread(Base):
     comments = relationship('Comment', backref='thread', foreign_keys='Comment.thread_id')
 
     # authors=relationship('User',backref='threads',secondary=thread_user)
-    def __str__(self):
-        return _str(self)
+    #def __str__(self):
+    #    return _str(self)
 
-    def __repr__(self):
-        return _str(self)
+    #def __repr__(self):
+    #    return _str(self)
 
 
-class Post(Base):
+class Post(Base,hint):
     __tablename__ = 'post'
 
     forum_id = Column(String, ForeignKey('forum.id'))
@@ -109,14 +114,14 @@ class Post(Base):
 
     # thread = relationship('Thread', backref='posts',foreign_keys=[thread_id])
     # authors=relationship('User',backref='posts',secondary=post_user)
-    def __str__(self):
-        return _str(self)
+    #def __str__(self):
+    #    return _str(self)
 
-    def __repr__(self):
-        return _str(self)
+    #def __repr__(self):
+    #    return _str(self)
 
 
-class Comment(Base):
+class Comment(Base,hint):
     __tablename__ = 'comment'
 
     forum_id = Column(String, ForeignKey('forum.id'))
@@ -129,30 +134,31 @@ class Comment(Base):
     comment_to = Column(String, ForeignKey('user.id'))
 
     # authors=relationship('User',backref='comments',secondary=comment_user)
-    def __str__(self):
-        return _str(self)
+    # def __str__(self):
+    #     return _str(self)
 
-    def __repr__(self):
-        return _str(self)
+    # def __repr__(self):
+    #     return _str(self)
 
 
-class User(Base):
+class User(Base,hint):
     __tablename__ = 'user'
 
     name = Column(String)
     nickname = Column(String)
     id = Column(String, primary_key=True)
 
-    threads = relationship('Thread', foreign_keys='Thread.author')
-    posts = relationship('Post', foreign_keys='Post.author')
-    comments = relationship('Comment', foreign_keys='Comment.author')
+
+    threads = relationship('Thread', foreign_keys='Thread.author',backref='user')
+    posts = relationship('Post', foreign_keys='Post.author',backref='user')
+    comments = relationship('Comment', foreign_keys='Comment.author',backref='user')
 
     # threads=relationship('Thread',secondary=thread_user)
-    def __str__(self):
-        return _str(self)
+   #  def __str__(self):
+   #      return _str(self)
 
-    def __repr__(self):
-        return _str(self)
+   #  def __repr__(self):
+   #      return _str(self)
 
 
 Base.metadata.create_all(engine)
@@ -206,6 +212,10 @@ def insertOrUpdate(cls, rows: dict | list[dict], updateStrategy: str = 'null') -
         _dataList.append(rows)
     if isinstance(rows, list):
         _dataList += rows
+    # todo 
+    # if isinstance(rows,User||Thread...):
+    # 
+
 
     updateStrategy: str = updateStrategy.lower()
     strategies = {
